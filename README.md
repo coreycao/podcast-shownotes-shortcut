@@ -23,7 +23,7 @@ Apple Podcasts → 分享单集 → iOS Shortcut → 打开 PWA → 展示 Show 
 
 ### 2. 添加到主屏幕（推荐）
 
-在 Safari 中打开 [podcast-shownotes.pages.dev](https://podcast-shownotes.pages.dev)，通过分享菜单选择"添加到主屏幕"，获得接近原生 App 的体验。
+在 Safari 中打开 [podcast-shownotes.caosanyang.workers.dev](https://podcast-shownotes.caosanyang.workers.dev)，通过分享菜单选择"添加到主屏幕"，获得接近原生 App 的体验。
 
 ## 使用方法
 
@@ -39,40 +39,33 @@ Apple Podcasts → 分享单集 → iOS Shortcut → 打开 PWA → 展示 Show 
 - **PWA**：Service Worker 离线缓存，支持添加到主屏幕
 - **API**：iTunes Search / Lookup API
 - **RSS**：前端 DOMParser 直接解析，CORS 代理降级
-- **部署**：Cloudflare Pages + Workers
+- **部署**：Cloudflare Workers Static Assets + Worker 路由
 
 ## 开发
 
 ```bash
-npm run dev      # Wrangler Pages 本地环境（含 /rss-proxy Function）
+npm run dev      # Wrangler Worker 本地环境（含静态资源和 /rss-proxy）
 npm run serve    # 简单静态服务：http://localhost:4173
 npm run check    # 校验静态资源、manifest、JS 语法
-npm run build    # 生成 Cloudflare Pages 可部署目录 dist/
+npm run build    # 生成 Cloudflare Workers Static Assets 目录 dist/
 ```
 
-项目没有前端框架和打包依赖，`build` 只复制静态资源并生成 Cloudflare Pages `_headers`。
+项目没有前端框架和打包依赖，`build` 只复制静态资源到 `dist/`。安全响应头和缓存策略由 Worker 统一设置。
 
 ## Cloudflare 部署
 
-- Pages 项目名：`podcast-shownotes`
-- Pages 输出目录：`dist/`（见 `wrangler.toml`）
-- RSS 代理：优先使用同域 Pages Function `/rss-proxy`
-- 独立 Worker：`cors-proxy`，保留为代理服务的独立部署入口
-- 代理限流：独立 Worker 使用 `RSS_PROXY_RATE_LIMIT`
-
-GitHub Actions 会在 `master` push 后运行检查和构建；如果仓库配置了以下 secrets，会继续部署 Pages 和 Worker：
-
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+- Worker 名称：`podcast-shownotes`
+- 静态资源目录：`dist/`（见 `wrangler.toml` 的 `[assets]`）
+- RSS 代理：同域 Worker 路由 `/rss-proxy`
+- 代理限流：同一个 Worker 使用 `RSS_PROXY_RATE_LIMIT`
 
 本地手动部署：
 
 ```bash
-npm run deploy:pages
-npm run deploy:worker
+npm run deploy
 ```
 
-Rate Limiting 绑定需要 Wrangler 4.36+；项目脚本使用 `npx wrangler@latest` 避免本地旧版本缺少该配置支持。Pages 项目配置目前不支持 `ratelimits`，所以同域 `/rss-proxy` 不绑定该限流规则。
+Cloudflare 自动化部署建议在 Workers 项目中连接 Git 仓库，构建命令使用 `npm run build`，部署命令使用 `npx wrangler@latest deploy`。Rate Limiting 绑定需要 Wrangler 4.36+；项目脚本使用 `npx wrangler@latest` 避免本地旧版本缺少该配置支持。
 
 ## 项目结构
 
@@ -84,10 +77,6 @@ Rate Limiting 绑定需要 Wrangler 4.36+；项目脚本使用 `npx wrangler@lat
 ├── icon-512.png
 ├── package.json     # 开发、校验、构建脚本
 ├── scripts/         # 构建与检查脚本
-├── functions/       # Cloudflare Pages Functions
-├── wrangler.toml    # Cloudflare Pages 配置
-├── cors-proxy/      # Cloudflare Worker — CORS 代理
-│   ├── wrangler.toml
-│   └── src/index.js
-└── spec.md          # 详细开发规格书
+├── worker/          # Cloudflare Worker 入口和 RSS 代理逻辑
+└── wrangler.toml    # Cloudflare Worker + Static Assets 配置
 ```

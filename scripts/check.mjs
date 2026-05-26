@@ -10,10 +10,8 @@ const requiredFiles = [
   'wrangler.toml',
   'icon-192.png',
   'icon-512.png',
-  'cors-proxy/src/index.js',
-  'cors-proxy/src/proxy.js',
-  'cors-proxy/wrangler.toml',
-  'functions/rss-proxy.js',
+  'worker/index.js',
+  'worker/proxy.js',
 ];
 
 for (const file of requiredFiles) {
@@ -44,9 +42,8 @@ for (const [index, script] of inlineScripts.entries()) {
 
 await nodeCheck('config.js');
 await nodeCheck('sw.js');
-await nodeCheck('cors-proxy/src/index.js');
-await nodeCheck('cors-proxy/src/proxy.js');
-await nodeCheck('functions/rss-proxy.js');
+await nodeCheck('worker/index.js');
+await nodeCheck('worker/proxy.js');
 
 function nodeCheck(file) {
   return new Promise((resolve, reject) => {

@@ -1,3 +1,16 @@
 name = "podcast-shownotes"
+main = "worker/index.js"
 compatibility_date = "2026-05-26"
-pages_build_output_dir = "./dist"
+
+[assets]
+binding = "ASSETS"
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+[[ratelimits]]
+name = "RSS_PROXY_RATE_LIMIT"
+namespace_id = "2026052601"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60
