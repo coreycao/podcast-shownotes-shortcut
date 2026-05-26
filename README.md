@@ -44,12 +44,35 @@ Apple Podcasts → 分享单集 → iOS Shortcut → 打开 PWA → 展示 Show 
 ## 开发
 
 ```bash
-npm run dev      # 本地静态服务：http://localhost:4173
+npm run dev      # Wrangler Pages 本地环境（含 /rss-proxy Function）
+npm run serve    # 简单静态服务：http://localhost:4173
 npm run check    # 校验静态资源、manifest、JS 语法
 npm run build    # 生成 Cloudflare Pages 可部署目录 dist/
 ```
 
 项目没有前端框架和打包依赖，`build` 只复制静态资源并生成 Cloudflare Pages `_headers`。
+
+## Cloudflare 部署
+
+- Pages 项目名：`podcast-shownotes`
+- Pages 输出目录：`dist/`（见 `wrangler.toml`）
+- RSS 代理：优先使用同域 Pages Function `/rss-proxy`
+- 独立 Worker：`cors-proxy`，保留为代理服务的独立部署入口
+- 代理限流：Pages Function 和独立 Worker 共享 `RSS_PROXY_RATE_LIMIT`
+
+GitHub Actions 会在 `master` push 后运行检查和构建；如果仓库配置了以下 secrets，会继续部署 Pages 和 Worker：
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+本地手动部署：
+
+```bash
+npm run deploy:pages
+npm run deploy:worker
+```
+
+Rate Limiting 绑定需要 Wrangler 4.36+；项目脚本使用 `npx wrangler@latest` 避免本地旧版本缺少该配置支持。
 
 ## 项目结构
 
@@ -61,6 +84,8 @@ npm run build    # 生成 Cloudflare Pages 可部署目录 dist/
 ├── icon-512.png
 ├── package.json     # 开发、校验、构建脚本
 ├── scripts/         # 构建与检查脚本
+├── functions/       # Cloudflare Pages Functions
+├── wrangler.toml    # Cloudflare Pages 配置
 ├── cors-proxy/      # Cloudflare Worker — CORS 代理
 │   ├── wrangler.toml
 │   └── src/index.js

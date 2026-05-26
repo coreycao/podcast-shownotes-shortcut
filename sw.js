@@ -207,9 +207,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   // RSS feeds and CORS proxies
-  const corsProxyHost = CONFIG.CORS_PROXY_URL ? new URL(CONFIG.CORS_PROXY_URL).hostname : '';
+  const corsProxyUrl = CONFIG.CORS_PROXY_URL
+    ? new URL(CONFIG.CORS_PROXY_URL, self.location.origin)
+    : null;
   if (
-    (corsProxyHost && url.hostname === corsProxyHost) ||
+    (corsProxyUrl && url.origin === corsProxyUrl.origin && url.pathname.startsWith(corsProxyUrl.pathname)) ||
     url.hostname === 'api.allorigins.win'
   ) {
     event.respondWith(networkFirst(event.request, RSS_CACHE, RSS_TTL));

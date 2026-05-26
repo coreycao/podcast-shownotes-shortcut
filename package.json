@@ -6,6 +6,9 @@
   "scripts": {
     "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
-    "dev": "python3 -m http.server 4173"
+    "dev": "npm run build && npx wrangler@latest pages dev dist",
+    "serve": "python3 -m http.server 4173",
+    "deploy:pages": "npm run build && npx wrangler@latest pages deploy dist --project-name podcast-shownotes",
+    "deploy:worker": "npx wrangler@latest deploy --config cors-proxy/wrangler.toml"
   }
 }

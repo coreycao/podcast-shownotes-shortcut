@@ -1,6 +1,6 @@
-name = "cors-proxy"
-main = "src/index.js"
+name = "podcast-shownotes"
 compatibility_date = "2026-05-26"
+pages_build_output_dir = "./dist"
 
 [[ratelimits]]
 name = "RSS_PROXY_RATE_LIMIT"
