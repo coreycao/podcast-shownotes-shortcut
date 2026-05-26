@@ -58,7 +58,7 @@ npm run build    # 生成 Cloudflare Pages 可部署目录 dist/
 - Pages 输出目录：`dist/`（见 `wrangler.toml`）
 - RSS 代理：优先使用同域 Pages Function `/rss-proxy`
 - 独立 Worker：`cors-proxy`，保留为代理服务的独立部署入口
-- 代理限流：Pages Function 和独立 Worker 共享 `RSS_PROXY_RATE_LIMIT`
+- 代理限流：独立 Worker 使用 `RSS_PROXY_RATE_LIMIT`
 
 GitHub Actions 会在 `master` push 后运行检查和构建；如果仓库配置了以下 secrets，会继续部署 Pages 和 Worker：
 
@@ -72,7 +72,7 @@ npm run deploy:pages
 npm run deploy:worker
 ```
 
-Rate Limiting 绑定需要 Wrangler 4.36+；项目脚本使用 `npx wrangler@latest` 避免本地旧版本缺少该配置支持。
+Rate Limiting 绑定需要 Wrangler 4.36+；项目脚本使用 `npx wrangler@latest` 避免本地旧版本缺少该配置支持。Pages 项目配置目前不支持 `ratelimits`，所以同域 `/rss-proxy` 不绑定该限流规则。
 
 ## 项目结构
 
