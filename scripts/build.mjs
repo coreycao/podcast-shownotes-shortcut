@@ -3,7 +3,10 @@ import { cp, mkdir, rm } from 'node:fs/promises';
 const distDir = 'dist';
 const staticFiles = [
   'index.html',
+  'app.css',
+  'app.js',
   'config.js',
+  'sanitize.js',
   'sw.js',
   'manifest.json',
   'icon-192.png',

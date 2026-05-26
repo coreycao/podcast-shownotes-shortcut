@@ -9,8 +9,11 @@ const RSS_CACHE = `rss-${CACHE_VERSION}`;
 const SHELL_ASSETS = [
   './',
   './index.html',
+  './app.css',
+  './app.js',
   './config.js',
   './manifest.json',
+  './sanitize.js',
   './icon-192.png',
   './icon-512.png',
 ];
@@ -182,7 +185,11 @@ self.addEventListener('fetch', (event) => {
     if (
       url.pathname.endsWith('/') ||
       url.pathname.endsWith('index.html') ||
+      url.pathname.endsWith('app.css') ||
+      url.pathname.endsWith('app.js') ||
+      url.pathname.endsWith('config.js') ||
       url.pathname.endsWith('manifest.json') ||
+      url.pathname.endsWith('sanitize.js') ||
       url.pathname.endsWith('.png')
     ) {
       if (url.pathname.endsWith('.png')) {
@@ -210,10 +217,7 @@ self.addEventListener('fetch', (event) => {
   const corsProxyUrl = CONFIG.CORS_PROXY_URL
     ? new URL(CONFIG.CORS_PROXY_URL, self.location.origin)
     : null;
-  if (
-    (corsProxyUrl && url.origin === corsProxyUrl.origin && url.pathname.startsWith(corsProxyUrl.pathname)) ||
-    url.hostname === 'api.allorigins.win'
-  ) {
+  if (corsProxyUrl && url.origin === corsProxyUrl.origin && url.pathname.startsWith(corsProxyUrl.pathname)) {
     event.respondWith(networkFirst(event.request, RSS_CACHE, RSS_TTL));
     return;
   }

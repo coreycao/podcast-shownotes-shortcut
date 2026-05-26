@@ -1,10 +1,12 @@
 import { access, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import vm from 'node:vm';
 
 const requiredFiles = [
   'index.html',
+  'app.css',
+  'app.js',
   'config.js',
+  'sanitize.js',
   'sw.js',
   'manifest.json',
   'wrangler.toml',
@@ -29,21 +31,23 @@ if (!Array.isArray(manifest.icons) || manifest.icons.length < 2) {
 }
 
 const html = await readFile('index.html', 'utf8');
-for (const asset of ['./config.js', './manifest.json', './icon-192.png']) {
+for (const asset of ['./app.css', './config.js', './app.js', './manifest.json', './icon-192.png']) {
   if (!html.includes(asset)) {
     throw new Error(`index.html does not reference ${asset}`);
   }
 }
 
-const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
-for (const [index, script] of inlineScripts.entries()) {
-  new vm.Script(script, { filename: `index.html inline script ${index + 1}` });
+if (/<style[\s>]/i.test(html) || /<script(?![^>]*\bsrc=)[^>]*>/i.test(html)) {
+  throw new Error('index.html should not contain inline style or script blocks');
 }
 
+await nodeCheck('app.js');
 await nodeCheck('config.js');
+await nodeCheck('sanitize.js');
 await nodeCheck('sw.js');
 await nodeCheck('worker/index.js');
 await nodeCheck('worker/proxy.js');
+await runTests();
 
 function nodeCheck(file) {
   return new Promise((resolve, reject) => {
@@ -54,6 +58,20 @@ function nodeCheck(file) {
         resolve();
       } else {
         reject(new Error(`node --check failed for ${file}`));
+      }
+    });
+  });
+}
+
+function runTests() {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['--test', 'tests/proxy.test.mjs', 'tests/sanitize.test.mjs'], { stdio: 'inherit' });
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error('tests failed'));
       }
     });
   });

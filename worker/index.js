@@ -5,8 +5,8 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self'",
+    "style-src 'self'",
     "img-src 'self' https: data:",
     "connect-src 'self' https:",
     "font-src 'self'",
@@ -18,7 +18,7 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
 };
 
-const NO_CACHE_PATHS = new Set(['/sw.js', '/index.html', '/config.js']);
+const NO_CACHE_PATHS = new Set(['/sw.js', '/index.html', '/app.css', '/app.js', '/config.js', '/sanitize.js']);
 
 export default {
   async fetch(request, env) {
