@@ -228,6 +228,7 @@ a:hover{text-decoration:underline}
   let currentPodcast = null;
   let currentEpisodes = [];
   let targetEpisodeId = null;
+  let episodeLoadKey = '';
 
   // --- Theme ---
   const savedTheme = localStorage.getItem('theme');
@@ -421,9 +422,11 @@ a:hover{text-decoration:underline}
       })();
       const enclosure = item.querySelector('enclosure');
       const duration = item.getElementsByTagNameNS('*', 'duration')[0];
+      const guid = item.querySelector('guid');
       return {
         title: getText('title'),
         pubDate: getText('pubDate'),
+        guid: guid ? guid.textContent : '',
         link: getText('link'),
         content,
         enclosure: enclosure ? enclosure.getAttribute('url') : '',
@@ -441,9 +444,11 @@ a:hover{text-decoration:underline}
     container.innerHTML = `
       <div class="error-state">
         <div class="icon">😕</div>
-        <p>${message}</p>
-        ${retryFn ? '<button onclick="(' + retryFn.toString() + ')()">重试</button>' : ''}
+        <p>${esc(message)}</p>
+        ${retryFn ? '<button type="button" class="retry-btn">重试</button>' : ''}
       </div>`;
+    const retryBtn = container.querySelector('.retry-btn');
+    if (retryBtn) retryBtn.addEventListener('click', retryFn);
   }
 
   function renderSearchResults(results) {
@@ -487,7 +492,6 @@ a:hover{text-decoration:underline}
         targetEpisodeId = null;
         renderPodcastHeader();
         showView('episodes');
-        loadEpisodes();
         location.hash = 'episodes/' + id;
       });
     });
@@ -511,6 +515,8 @@ a:hover{text-decoration:underline}
         primaryGenreName: info.primaryGenreName || '',
         feedUrl: info.feedUrl,
       };
+      currentEpisodes = [];
+      episodeLoadKey = '';
       renderPodcastHeader();
       await loadEpisodes();
     } catch (e) {
@@ -538,6 +544,8 @@ a:hover{text-decoration:underline}
         primaryGenreName: info.primaryGenreName || '',
         feedUrl: info.feedUrl,
       };
+      currentEpisodes = [];
+      episodeLoadKey = '';
       renderPodcastHeader();
       await loadEpisodes();
       renderShowNotes(idx);
@@ -560,9 +568,15 @@ a:hover{text-decoration:underline}
   }
 
   async function loadEpisodes() {
+    const loadKey = currentPodcast?.collectionId + '|' + currentPodcast?.feedUrl;
+    if (currentEpisodes.length && episodeLoadKey === loadKey) {
+      renderEpisodeList();
+      return;
+    }
     renderLoading($('#episodeList'));
     try {
       currentEpisodes = await fetchRSS(currentPodcast.feedUrl);
+      episodeLoadKey = loadKey;
       if (!currentEpisodes.length) {
         renderError($('#episodeList'), '该播客没有剧集');
         return;
@@ -605,7 +619,7 @@ a:hover{text-decoration:underline}
   async function autoLocateEpisode(episodeId) {
     // Strategy 1: direct match in guid/link/enclosure
     let idx = currentEpisodes.findIndex((ep) => {
-      const haystack = (ep.link || '') + (ep.enclosure || '');
+      const haystack = (ep.guid || '') + (ep.link || '') + (ep.enclosure || '');
       return haystack.includes(episodeId);
     });
 
@@ -672,7 +686,7 @@ a:hover{text-decoration:underline}
         <h2>${esc(ep.title || '无标题')}</h2>
         <div class="meta">${date}</div>
       </div>
-      <div class="shownotes-content">${ep.content || '<p>该剧集没有 Show Notes</p>'}</div>`;
+      <div class="shownotes-content">${sanitizeShownotes(ep.content) || '<p>该剧集没有 Show Notes</p>'}</div>`;
     showView('shownotes');
     window.scrollTo(0, 0);
   }
@@ -711,6 +725,63 @@ a:hover{text-decoration:underline}
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
+  }
+
+  function sanitizeShownotes(html) {
+    if (!html) return '';
+    const template = document.createElement('template');
+    template.innerHTML = html;
+
+    const allowedTags = new Set([
+      'A', 'B', 'BLOCKQUOTE', 'BR', 'CODE', 'DIV', 'EM', 'H1', 'H2', 'H3', 'H4',
+      'HR', 'I', 'IMG', 'LI', 'OL', 'P', 'PRE', 'S', 'SPAN', 'STRONG', 'TABLE',
+      'TBODY', 'TD', 'TH', 'THEAD', 'TR', 'U', 'UL',
+    ]);
+    const allowedAttrs = {
+      A: new Set(['href', 'title']),
+      IMG: new Set(['src', 'alt', 'title', 'width', 'height']),
+      TD: new Set(['colspan', 'rowspan']),
+      TH: new Set(['colspan', 'rowspan']),
+    };
+    const urlAttrs = new Set(['href', 'src']);
+
+    [...template.content.querySelectorAll('*')].forEach((el) => {
+      if (!allowedTags.has(el.tagName)) {
+        el.replaceWith(...el.childNodes);
+        return;
+      }
+
+      [...el.attributes].forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const allowed = allowedAttrs[el.tagName]?.has(name);
+        if (!allowed) {
+          el.removeAttribute(attr.name);
+          return;
+        }
+        if (urlAttrs.has(name) && !isSafeUrl(attr.value)) {
+          el.removeAttribute(attr.name);
+        }
+      });
+
+      if (el.tagName === 'A' && el.hasAttribute('href')) {
+        el.setAttribute('target', '_blank');
+        el.setAttribute('rel', 'noopener noreferrer');
+      }
+      if (el.tagName === 'IMG') {
+        el.setAttribute('loading', 'lazy');
+      }
+    });
+
+    return template.innerHTML;
+  }
+
+  function isSafeUrl(value) {
+    try {
+      const url = new URL(value, location.href);
+      return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol);
+    } catch {
+      return false;
+    }
   }
 
   function formatDate(dateStr) {
