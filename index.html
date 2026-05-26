@@ -602,17 +602,41 @@ a:hover{text-decoration:underline}
 
     // Auto-locate episode by episodeId: navigate directly to show notes
     if (targetEpisodeId) {
-      const idx = currentEpisodes.findIndex((ep) => {
-        const guid = ep.link || '';
-        return guid.includes(targetEpisodeId) || ep.enclosure?.includes(targetEpisodeId);
-      });
-      const matchedIdx = idx >= 0 ? idx : null;
+      autoLocateEpisode(targetEpisodeId);
       targetEpisodeId = null;
-      if (matchedIdx !== null) {
-        navigateTo('shownotes/' + currentPodcast.collectionId + '/' + matchedIdx);
-        return;
-      }
     }
+  }
+
+  async function autoLocateEpisode(episodeId) {
+    // Strategy 1: direct match in guid/link/enclosure
+    let idx = currentEpisodes.findIndex((ep) => {
+      const haystack = (ep.link || '') + (ep.enclosure || '');
+      return haystack.includes(episodeId);
+    });
+
+    // Strategy 2: iTunes Lookup → match by title
+    if (idx < 0) {
+      try {
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${episodeId}`);
+        const data = await res.json();
+        if (data.results && data.results.length) {
+          const lookupTitle = normalizeTitle(data.results[0].trackName);
+          if (lookupTitle) {
+            idx = currentEpisodes.findIndex((ep) => {
+              return normalizeTitle(ep.title) === lookupTitle;
+            });
+          }
+        }
+      } catch {}
+    }
+
+    if (idx >= 0 && currentPodcast) {
+      navigateTo('shownotes/' + currentPodcast.collectionId + '/' + idx);
+    }
+  }
+
+  function normalizeTitle(t) {
+    return (t || '').toLowerCase().replace(/[^\w一-鿿]/g, '').trim();
   }
 
   function renderShowNotes(idx) {
