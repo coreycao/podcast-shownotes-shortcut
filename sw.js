@@ -4,6 +4,7 @@ const CACHE_VERSION = 'v3';
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 const API_CACHE = `api-${CACHE_VERSION}`;
 const IMG_CACHE = `img-${CACHE_VERSION}`;
+const RSS_CACHE = `rss-${CACHE_VERSION}`;
 
 const SHELL_ASSETS = [
   './',
@@ -17,6 +18,12 @@ const SHELL_ASSETS = [
 const API_TTL = 24 * 60 * 60 * 1000;
 const RSS_TTL = 1 * 60 * 60 * 1000;
 const IMG_TTL = 7 * 24 * 60 * 60 * 1000;
+const RSS_CONTENT_TYPES = [
+  'application/rss+xml',
+  'application/atom+xml',
+  'application/xml',
+  'text/xml',
+];
 
 function isExpired(cached, ttl) {
   if (!cached) return true;
@@ -24,6 +31,7 @@ function isExpired(cached, ttl) {
 }
 
 async function cacheWithTimestamp(cache, request, response) {
+  if (request.method !== 'GET') return;
   const cloned = response.clone();
   const headers = new Headers(cloned.headers);
   headers.set('sw-cache-timestamp', Date.now().toString());
@@ -37,6 +45,12 @@ async function cacheWithTimestamp(cache, request, response) {
 function getCacheTimestamp(response) {
   const ts = response?.headers?.get('sw-cache-timestamp');
   return ts ? parseInt(ts, 10) : null;
+}
+
+function isXmlLike(response) {
+  const contentType = response.headers.get('Content-Type') || '';
+  const normalized = contentType.split(';')[0].trim().toLowerCase();
+  return RSS_CONTENT_TYPES.includes(normalized);
 }
 
 // Cache First strategy (for shell assets and images)
@@ -59,6 +73,22 @@ async function cacheFirst(request, cacheName, ttl) {
   } catch {
     return cached || new Response('Offline', { status: 503 });
   }
+}
+
+// Stale While Revalidate strategy (for app shell)
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  const network = fetch(request)
+    .then(async (response) => {
+      if (response.ok) {
+        await cacheWithTimestamp(cache, request, response);
+      }
+      return response;
+    })
+    .catch(() => null);
+
+  return cached || (await network) || new Response('Offline', { status: 503 });
 }
 
 // Network First strategy (for API responses)
@@ -95,6 +125,33 @@ async function networkFirst(request, cacheName, ttl) {
   }
 }
 
+async function networkFirstXml(request) {
+  const cache = await caches.open(RSS_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok && isXmlLike(response)) {
+      await cacheWithTimestamp(cache, request, response);
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) {
+      const ts = getCacheTimestamp(cached);
+      const headers = new Headers(cached.headers);
+      headers.delete('sw-cache-timestamp');
+      if (isExpired({ timestamp: ts }, RSS_TTL)) {
+        headers.set('sw-cache-stale', 'true');
+      }
+      return new Response(cached.body, {
+        status: cached.status,
+        statusText: cached.statusText,
+        headers,
+      });
+    }
+    return new Response('Offline and no RSS cache', { status: 503 });
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS))
@@ -107,7 +164,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => ![SHELL_CACHE, API_CACHE, IMG_CACHE].includes(k))
+          .filter((k) => ![SHELL_CACHE, API_CACHE, IMG_CACHE, RSS_CACHE].includes(k))
           .map((k) => caches.delete(k))
       )
     )
@@ -116,6 +173,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
   // App Shell
@@ -129,7 +188,7 @@ self.addEventListener('fetch', (event) => {
       if (url.pathname.endsWith('.png')) {
         event.respondWith(cacheFirst(event.request, IMG_CACHE, IMG_TTL));
       } else {
-        event.respondWith(cacheFirst(event.request, SHELL_CACHE, null));
+        event.respondWith(staleWhileRevalidate(event.request, SHELL_CACHE));
       }
       return;
     }
@@ -153,7 +212,13 @@ self.addEventListener('fetch', (event) => {
     (corsProxyHost && url.hostname === corsProxyHost) ||
     url.hostname === 'api.allorigins.win'
   ) {
-    event.respondWith(networkFirst(event.request, API_CACHE, RSS_TTL));
+    event.respondWith(networkFirst(event.request, RSS_CACHE, RSS_TTL));
+    return;
+  }
+
+  // Direct RSS feeds that allow CORS should be cached too.
+  if (event.request.destination === '') {
+    event.respondWith(networkFirstXml(event.request));
     return;
   }
 

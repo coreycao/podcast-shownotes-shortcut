@@ -41,6 +41,16 @@ Apple Podcasts → 分享单集 → iOS Shortcut → 打开 PWA → 展示 Show 
 - **RSS**：前端 DOMParser 直接解析，CORS 代理降级
 - **部署**：Cloudflare Pages + Workers
 
+## 开发
+
+```bash
+npm run dev      # 本地静态服务：http://localhost:4173
+npm run check    # 校验静态资源、manifest、JS 语法
+npm run build    # 生成 Cloudflare Pages 可部署目录 dist/
+```
+
+项目没有前端框架和打包依赖，`build` 只复制静态资源并生成 Cloudflare Pages `_headers`。
+
 ## 项目结构
 
 ```
@@ -49,6 +59,8 @@ Apple Podcasts → 分享单集 → iOS Shortcut → 打开 PWA → 展示 Show 
 ├── manifest.json    # PWA 清单
 ├── icon-192.png
 ├── icon-512.png
+├── package.json     # 开发、校验、构建脚本
+├── scripts/         # 构建与检查脚本
 ├── cors-proxy/      # Cloudflare Worker — CORS 代理
 │   ├── wrangler.toml
 │   └── src/index.js
