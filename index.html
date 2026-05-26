@@ -625,14 +625,26 @@ a:hover{text-decoration:underline}
         const match = episodes.find((e) => String(e.trackId) === episodeId);
         if (match && match.trackName) {
           const lookupTitle = normalizeTitle(match.trackName);
+          // Try exact match first
           idx = currentEpisodes.findIndex((ep) => {
-            return normalizeTitle(ep.title) === lookupTitle;
+            const t = normalizeTitle(ep.title);
+            return t === lookupTitle || t.includes(lookupTitle) || lookupTitle.includes(t);
           });
-          // Fallback: fuzzy title match (first 30 chars)
+          // Fallback: match by episode number (e.g. "#202" or "No.202")
           if (idx < 0) {
-            const prefix = lookupTitle.slice(0, 30);
+            const numMatch = match.trackName.match(/^#?\s*(\d+)\b/i);
+            if (numMatch) {
+              const epNum = numMatch[1];
+              idx = currentEpisodes.findIndex((ep) => {
+                return (ep.title || '').match(new RegExp('(?:^|#|No\.?|EP\.?)\\s*' + epNum + '\\b', 'i'));
+              });
+            }
+          }
+          // Fallback: prefix match on first 20 meaningful chars
+          if (idx < 0 && lookupTitle.length >= 15) {
+            const prefix = lookupTitle.slice(0, 20);
             idx = currentEpisodes.findIndex((ep) => {
-              return normalizeTitle(ep.title).startsWith(prefix);
+              return normalizeTitle(ep.title).indexOf(prefix) >= 0;
             });
           }
         }
@@ -641,6 +653,14 @@ a:hover{text-decoration:underline}
 
     if (idx >= 0 && currentPodcast) {
       navigateTo('shownotes/' + currentPodcast.collectionId + '/' + idx);
+    } else if (episodeId) {
+      // Auto-locate failed: show hint at top of episode list
+      const hint = document.createElement('div');
+      hint.className = 'offline-banner show';
+      hint.style.cssText = 'background:#fef3c7;color:#92400e';
+      hint.textContent = '未找到对应剧集，请手动查找';
+      const container = $('#episodeList');
+      if (container) container.insertBefore(hint, container.firstChild);
     }
   }
 
