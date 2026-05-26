@@ -1,4 +1,6 @@
-const CACHE_VERSION = 'v2';
+importScripts('./config.js');
+
+const CACHE_VERSION = 'v3';
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 const API_CACHE = `api-${CACHE_VERSION}`;
 const IMG_CACHE = `img-${CACHE_VERSION}`;
@@ -6,6 +8,7 @@ const IMG_CACHE = `img-${CACHE_VERSION}`;
 const SHELL_ASSETS = [
   './',
   './index.html',
+  './config.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -145,8 +148,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   // RSS feeds and CORS proxies
+  const corsProxyHost = CONFIG.CORS_PROXY_URL ? new URL(CONFIG.CORS_PROXY_URL).hostname : '';
   if (
-    url.hostname === 'cors-proxy.caosanyang.workers.dev' ||
+    (corsProxyHost && url.hostname === corsProxyHost) ||
     url.hostname === 'api.allorigins.win'
   ) {
     event.respondWith(networkFirst(event.request, API_CACHE, RSS_TTL));

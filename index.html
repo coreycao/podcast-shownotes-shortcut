@@ -215,12 +215,15 @@ a:hover{text-decoration:underline}
   </div>
 </div>
 
+<script src="./config.js"></script>
 <script>
 (function() {
   'use strict';
 
   const $ = (s) => document.querySelector(s);
   const views = { home: $('#viewHome'), episodes: $('#viewEpisodes'), shownotes: $('#viewShowNotes') };
+
+  const { CORS_PROXY_URL } = CONFIG;
 
   let currentPodcast = null;
   let currentEpisodes = [];
@@ -378,7 +381,7 @@ a:hover{text-decoration:underline}
 
     // Strategy 2: CORS proxy
     try {
-      const proxyUrl = `https://cors-proxy.caosanyang.workers.dev/?url=${encodeURIComponent(feedUrl)}`;
+      const proxyUrl = `${CORS_PROXY_URL}?url=${encodeURIComponent(feedUrl)}`;
       const res = await fetch(proxyUrl);
       if (res.ok) {
         const xml = await res.text();
