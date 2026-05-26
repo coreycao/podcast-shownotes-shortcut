@@ -328,16 +328,19 @@ a:hover{text-decoration:underline}
       if (epMatch) episodeId = epMatch[1];
     }
 
-    // ?podcastId=1253186678
+    // ?podcastId=1253186678&episodeId=1000678901234
     if (!podcastId) {
       podcastId = params.get('podcastId');
+    }
+    if (!episodeId) {
+      episodeId = params.get('episodeId');
     }
 
     if (podcastId) {
       // Clean URL: replace query params with hash route
       const cleanUrl = location.pathname;
       history.replaceState(null, '', cleanUrl);
-      targetEpisodeId = episodeId;
+      targetEpisodeId = episodeId || null;
       navigateTo('episodes/' + podcastId);
       return true;
     }
@@ -597,20 +600,18 @@ a:hover{text-decoration:underline}
       });
     });
 
-    // Auto-locate episode by episodeId
+    // Auto-locate episode by episodeId: navigate directly to show notes
     if (targetEpisodeId) {
       const idx = currentEpisodes.findIndex((ep) => {
         const guid = ep.link || '';
         return guid.includes(targetEpisodeId) || ep.enclosure?.includes(targetEpisodeId);
       });
-      if (idx >= 0) {
-        const card = container.querySelector(`[data-idx="${idx}"]`);
-        if (card) {
-          card.classList.add('highlighted');
-          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
+      const matchedIdx = idx >= 0 ? idx : null;
       targetEpisodeId = null;
+      if (matchedIdx !== null) {
+        navigateTo('shownotes/' + currentPodcast.collectionId + '/' + matchedIdx);
+        return;
+      }
     }
   }
 
