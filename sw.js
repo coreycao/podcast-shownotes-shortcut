@@ -146,8 +146,8 @@ self.addEventListener('fetch', (event) => {
 
   // RSS feeds and CORS proxies
   if (
-    url.hostname === 'api.allorigins.win' ||
-    url.hostname === 'api.rss2json.com'
+    url.hostname === 'cors-proxy.caosanyang.workers.dev' ||
+    url.hostname === 'api.allorigins.win'
   ) {
     event.respondWith(networkFirst(event.request, API_CACHE, RSS_TTL));
     return;

@@ -378,7 +378,7 @@ a:hover{text-decoration:underline}
 
     // Strategy 2: CORS proxy
     try {
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`;
+      const proxyUrl = `https://cors-proxy.caosanyang.workers.dev/?url=${encodeURIComponent(feedUrl)}`;
       const res = await fetch(proxyUrl);
       if (res.ok) {
         const xml = await res.text();
@@ -387,22 +387,14 @@ a:hover{text-decoration:underline}
       }
     } catch {}
 
-    // Strategy 3: rss2json fallback
+    // Strategy 3: allorigins fallback
     try {
-      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
-      const res = await fetch(apiUrl);
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`;
+      const res = await fetch(proxyUrl);
       if (res.ok) {
-        const data = await res.json();
-        if (data.status === 'ok' && data.items && data.items.length) {
-          return data.items.map((item) => ({
-            title: item.title,
-            pubDate: item.pubDate,
-            link: item.link,
-            content: item.content || item.description || '',
-            enclosure: item.enclosure?.link || '',
-            duration: '',
-          }));
-        }
+        const xml = await res.text();
+        const items = parseRSSXML(xml);
+        if (items.length) return items;
       }
     } catch {}
 
