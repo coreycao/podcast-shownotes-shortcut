@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 const API_CACHE = `api-${CACHE_VERSION}`;
 const IMG_CACHE = `img-${CACHE_VERSION}`;
@@ -21,21 +21,14 @@ function isExpired(cached, ttl) {
 }
 
 async function cacheWithTimestamp(cache, request, response) {
-  const body = await response.clone().text();
-  const entry = new Response(body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  });
-  // We store the timestamp in a separate header that won't be sent to the client
-  const headers = new Headers(response.headers);
+  const cloned = response.clone();
+  const headers = new Headers(cloned.headers);
   headers.set('sw-cache-timestamp', Date.now().toString());
-  const stamped = new Response(body, {
-    status: response.status,
-    statusText: response.statusText,
+  await cache.put(request, new Response(cloned.body, {
+    status: cloned.status,
+    statusText: cloned.statusText,
     headers,
-  });
-  await cache.put(request, stamped);
+  }));
 }
 
 function getCacheTimestamp(response) {
@@ -145,19 +138,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // RSS feeds and CORS proxies
-  if (
-    url.hostname === 'api.allorigins.win' ||
-    url.hostname === 'api.rss2json.com' ||
-    event.request.headers.get('Accept')?.includes('xml')
-  ) {
-    event.respondWith(networkFirst(event.request, API_CACHE, RSS_TTL));
+  // Podcast artwork images (must be before generic checks — image Accept headers contain "xml")
+  if (url.hostname.includes('mzstatic.com') || url.hostname.includes('apple.com')) {
+    event.respondWith(cacheFirst(event.request, IMG_CACHE, IMG_TTL));
     return;
   }
 
-  // Podcast artwork images
-  if (url.hostname.includes('mzstatic.com') || url.hostname.includes('apple.com')) {
-    event.respondWith(cacheFirst(event.request, IMG_CACHE, IMG_TTL));
+  // RSS feeds and CORS proxies
+  if (
+    url.hostname === 'api.allorigins.win' ||
+    url.hostname === 'api.rss2json.com'
+  ) {
+    event.respondWith(networkFirst(event.request, API_CACHE, RSS_TTL));
     return;
   }
 
